@@ -10,16 +10,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.GetExchange;
 
-import java.math.BigInteger;
 
 
-public interface InventeryClient {
-    Logger log = LoggerFactory.getLogger(InventeryClient.class);
+
+public interface InventoryClient {
+    Logger log = LoggerFactory.getLogger(InventoryClient.class);
 
     @GetExchange( "/api/ineventory")
     @CircuitBreaker(name = "ineventory",fallbackMethod = "fallbackMethod")
     @Retry(name = "ineventory")
-    boolean IsInStock(@RequestParam String productId, @RequestParam Integer quantity);
+    boolean isInStock(@RequestParam String productId, @RequestParam Integer quantity);
 
 
     default boolean fallbackMethod(String productId, Integer quantity,Throwable throwable) {
