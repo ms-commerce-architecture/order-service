@@ -1,7 +1,4 @@
-package com.example.order_service.dto;
-
-import com.example.order_service.model.Enums.OrderStatus;
-import com.example.order_service.model.Enums.PaymentStatus;
+package com.example.order_service.dto.request;
 
 
 import java.math.BigDecimal;
