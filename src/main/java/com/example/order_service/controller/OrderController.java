@@ -1,8 +1,8 @@
 package com.example.order_service.controller;
 
 
-import com.example.order_service.dto.OrderRequest;
-import com.example.order_service.dto.OrderResponse;
+import com.example.order_service.dto.request.OrderRequest;
+import com.example.order_service.dto.response.OrderResponse;
 import com.example.order_service.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,39 +24,25 @@ public class OrderController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrderResponse placeOrder(@Valid @RequestBody OrderRequest request) {
-
-            log.info("Placing order for customer: {}", request.customerEmail());
-            return orderService.placeOrder(request, request.orderItemRequest());
-
-
-
+        return orderService.placeOrder(request);
     }
 
     @GetMapping("/{orderId}")
     @ResponseStatus(HttpStatus.OK)
     public OrderResponse getOrder(@PathVariable BigInteger orderId) {
-
-            OrderResponse orderResponse = orderService.getOrder(orderId);
-
-return orderResponse;
+        return orderService.getOrder(orderId);
     }
 
     @GetMapping("/number/{orderNumber}")
     @ResponseStatus(HttpStatus.OK)
-    public  OrderResponse getOrderByNumber(@PathVariable String orderNumber) {
-
-            OrderResponse orderResponse = orderService.getOrderByOrderNumber(orderNumber);
-            return orderResponse;
-
+    public OrderResponse getOrderByNumber(@PathVariable String orderNumber) {
+        return orderService.getOrderByOrderNumber(orderNumber);
     }
 
     @GetMapping("/customer/{customerId}")
     @ResponseStatus(HttpStatus.OK)
     public List<OrderResponse> getCustomerOrders(@PathVariable BigInteger customerId) {
-
-            List<OrderResponse> orders = orderService.getOrdersByCustomer(customerId);
-            return orders;
-
+        return orderService.getOrdersByCustomer(customerId);
     }
 }
 
