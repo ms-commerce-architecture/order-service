@@ -1,4 +1,4 @@
-package com.example.order_service.model.Enums;
+package com.example.order_service.domain.model.Enums;
 
 public enum PaymentStatus {
     PENDING, PAID, FAILED, REFUNDED

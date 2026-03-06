@@ -1,8 +1,8 @@
-package com.example.order_service.model;
+package com.example.order_service.domain.model;
 
 
-import com.example.order_service.model.Enums.OrderStatus;
-import com.example.order_service.model.Enums.PaymentStatus;
+import com.example.order_service.domain.model.Enums.OrderStatus;
+import com.example.order_service.domain.model.Enums.PaymentStatus;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -72,4 +72,19 @@ public class Order {
 
     @Column(name = "delivered_date")
     private LocalDateTime deliveredDate;
+
+
+    public void confirm() {
+        if (this.orderStatus != OrderStatus.PENDING) {
+            throw new IllegalStateException("Only pending orders can be confirmed");
+        }
+        this.orderStatus = OrderStatus.CONFIRMED;
+    }
+    public void ship(LocalDateTime shippedDate) {
+        this.shippedDate = shippedDate;
+        this.orderStatus = OrderStatus.SHIPPED;
+    }
+    public  BigDecimal calculateTotal(){
+        return  totalAmount.add(taxAmount).add(shippingAmount).subtract(discountAmount);
+    }
 }
