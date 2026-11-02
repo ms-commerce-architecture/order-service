@@ -1,0 +1,39 @@
+
+{
+  "name": "order-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "tasks.max": "1",
+
+    "database.hostname": "mysql",
+    "database.port": "3306",
+    "database.user": "${MYSQL_DEBEZIUM_USER}",
+    "database.password": "${MYSQL_DEBEZIUM_PASSWORD}",
+    "database.server.id": "184054",
+
+    "topic.prefix": "commerce",
+    "database.include.list": "order_service",
+    "table.include.list": "order_service.t_order_events",
+
+    "snapshot.mode": "no_data",
+
+    "schema.history.internal.kafka.bootstrap.servers": "broker:29092",
+    "schema.history.internal.kafka.topic": "schema-changes.order",
+
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+
+    "transforms.outbox.route.by.field": "aggregatetype",
+    "transforms.outbox.route.topic.replacement": "order-event",
+
+    "transforms.outbox.table.field.event.id": "id",
+    "transforms.outbox.table.field.event.key": "aggregateid",
+    "transforms.outbox.table.field.event.type": "type",
+    "transforms.outbox.table.field.event.payload": "payload",
+
+    "transforms.outbox.table.fields.additional.placement": "id:header:eventId",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.converters.ByteArrayConverter"
+  }
+}

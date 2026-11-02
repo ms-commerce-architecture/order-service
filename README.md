@@ -1,60 +1,91 @@
 # Order Service
 
-Spring Boot microservice for creating and querying customer orders. It persists order data in MySQL, validates stock through an inventory service client, and publishes order-created events to Kafka.
+Spring Boot microservice for creating and retrieving customer orders. The current implementation includes MySQL persistence, stock validation, Kafka event publication, and an outbox pattern for downstream event-driven integrations.
+
+## Overview
+
+This service is built around the order lifecycle:
+
+- accepts a customer order request
+- validates each product item against an inventory service
+- persists the complete order and order items in MySQL
+- creates an outbox event entry for `OrderCreated`
+- publishes the event to Kafka
+- exposes query endpoints for retrieval by ID, order number, and customer
 
 ## Tech Stack
 
 - Java 21
 - Spring Boot 3.5
-- Spring Data JPA + Flyway
+- Spring Data JPA
+- Flyway database migrations
 - MySQL
-- Spring Cloud OpenFeign / HTTP Interface style client
-- Resilience4j (retry/circuit-breaker annotations)
+- OpenFeign / HTTP interface client
+- Resilience4j retry + circuit breaker
 - Spring Kafka
-- springdoc OpenAPI (Swagger UI)
+- springdoc OpenAPI / Swagger UI
+- Docker Compose for local infrastructure
 
-## Features
+## Implemented Features
 
-- Create orders (`POST /api/order`)
-- Get order by ID (`GET /api/order/{orderId}`)
-- Get order by order number (`GET /api/order/number/{orderNumber}`)
-- Get all orders for a customer (`GET /api/order/customer/{customerId}`)
-- Flyway-backed schema migration for orders, order items, and order status history
-- Kafka event publishing on order creation
+- Create an order via `POST /api/order`
+- Read an order by ID via `GET /api/order/{orderId}`
+- Read an order by order number via `GET /api/order/number/{orderNumber}`
+- Read all orders for a customer via `GET /api/order/customer/{customerId}`
+- Validate stock before accepting an order via `InventoryClient`
+- Serialize and store `OrderCreated` events in the outbox table `t_order_events`
+- Publish Kafka events with Spring Kafka
+- Expose interactive API docs through Swagger UI
 
 ## Project Structure
 
 ```text
 src/main/java/com/example/order_service
-├── client          # External service clients (inventory)
-├── config          # App configuration (REST client config)
-├── controller      # REST API controllers
-├── domain          # JPA entities + repositories
-├── dto             # Request/response DTOs
-├── event           # Domain events + publishers
-├── exception       # Custom exceptions
-├── mapper          # MapStruct mappers
-└── service         # Business logic
+├── client               # External inventory client and fallback logic
+├── config               # HTTP client + framework configuration
+├── controller           # REST API endpoints
+├── domain
+│   ├── model            # Order, items, status history, enums
+│   └── repository       # JPA repositories
+├── dto                  # Request and response DTOs
+├── event                # Order event payload and Kafka publisher
+├── exception            # Domain exceptions
+├── mapper               # MapStruct mappers
+├── outbox               # Outbox event entity and persistence layer
+├── service              # Business logic and validation
+└── OrderServiceApplication.java
 ```
+
+## Local Infrastructure
+
+The project includes a Docker Compose setup for the supporting services:
+
+- MySQL on `localhost:3306`
+- Kafka broker on `localhost:9092`
+- ZooKeeper (required for Kafka)
+- Kafka UI on `http://localhost:8086`
+- Debezium Connect on `http://localhost:8083`
+- Schema Registry on `http://localhost:8085`
+
+Project files:
+
+- `docker-compose.yml`
+- `debezium/order-outbox-connector.json`
+- `docker/mysql/init.sql`
 
 ## Prerequisites
 
 - Java 21+
-- Docker + Docker Compose
-- (Optional) Maven installed globally, otherwise use `./mvnw`
+- Docker and Docker Compose
+- Maven wrapper included (`./mvnw`) or a global Maven installation
 
-## Local Run
+## Quick Start
 
-1. Start infrastructure services:
+1. Start the required infrastructure:
 
    ```bash
    docker compose up -d
    ```
-
-   This starts:
-   - MySQL on `localhost:3306`
-   - Kafka broker on `localhost:9092`
-   - Kafka UI on `http://localhost:8086`
 
 2. Start the application:
 
@@ -62,14 +93,15 @@ src/main/java/com/example/order_service
    ./mvnw spring-boot:run
    ```
 
-3. Service will be available at:
-   - API base URL: `http://localhost:8081/api/order`
+3. Open the API docs:
+
    - Swagger UI: `http://localhost:8081/swagger-ui.html`
+   - Swagger UI (new path): `http://localhost:8081/swagger-ui/index.html`
    - OpenAPI JSON: `http://localhost:8081/v3/api-docs`
 
 ## API Examples
 
-### Create Order
+### Create order
 
 ```bash
 curl -X POST http://localhost:8081/api/order \
@@ -98,19 +130,19 @@ curl -X POST http://localhost:8081/api/order \
   }'
 ```
 
-### Get Order by ID
+### Get order by ID
 
 ```bash
 curl http://localhost:8081/api/order/1
 ```
 
-### Get Order by Number
+### Get order by order number
 
 ```bash
 curl http://localhost:8081/api/order/number/ORD-123456
 ```
 
-### Get Orders by Customer
+### Get orders by customer
 
 ```bash
 curl http://localhost:8081/api/order/customer/1001
@@ -118,19 +150,20 @@ curl http://localhost:8081/api/order/customer/1001
 
 ## Configuration
 
-Main application settings live in:
+Main application settings are stored in:
 
 - `src/main/resources/application.properties`
 - `docker-compose.yml`
-- `src/main/resources/db/migration/V1__init.sql`
+- Flyway migrations under `src/main/resources/db/migration`
 
-Default local values include:
+Default local configuration values include:
 
-- App port: `8081`
-- MySQL URL: `jdbc:mysql://localhost:3306/order_service`
+- application port: `8081`
+- database: `jdbc:mysql://localhost:3306/order_service`
 - Kafka bootstrap servers: `localhost:9092`
+- default Kafka topic: `order-event`
 
-## Build & Test
+## Build and Test
 
 ```bash
 ./mvnw clean test
@@ -138,5 +171,6 @@ Default local values include:
 
 ## Notes
 
-- The service expects an inventory endpoint for stock checks through `InventoryClient`.
-- On successful order creation, an order event is published to Kafka.
+- The service validates inventory via `InventoryClient` and uses resilience settings to retry and fail safely when the external stock service is unavailable.
+- The `t_order_events` table is used as an outbox store so order events can be captured by Debezium and distributed to downstream systems.
+- For the order creation flow, the application creates the order, stores outbox entries, and emits Kafka events after persistence.
