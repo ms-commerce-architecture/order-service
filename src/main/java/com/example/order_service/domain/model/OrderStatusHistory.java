@@ -1,4 +1,4 @@
-package com.example.order_service.model;
+package com.example.order_service.domain.model;
 
 
 import jakarta.persistence.*;
