@@ -1,6 +1,9 @@
 package com.example.order_service.service;
 
 
+import com.example.order_service.event.OrderEvent;
+import com.example.order_service.outbox.OutboxEvent;
+import com.example.order_service.outbox.OutboxEventRepository;
 import com.example.order_service.dto.request.OrderItemRequest;
 import com.example.order_service.dto.request.OrderRequest;
 import com.example.order_service.dto.response.OrderResponse;
@@ -13,6 +16,8 @@ import com.example.order_service.event.publisher.OrderEventPublisher;
 import com.example.order_service.exception.OrderNotFoundException;
 
 import com.example.order_service.mapper.OrderMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,6 +39,10 @@ public class OrderService {
     private final OrderEventPublisher eventPublisher;
     private final OrderMapper orderMapper;
     private final OrderItemService orderItemService;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
+
+
 
     @Transactional
     public OrderResponse placeOrder(OrderRequest orderRequest) {
@@ -42,6 +51,27 @@ public class OrderService {
         Order order = orderMapper.toOrder(orderRequest);
         Order saveOrder = orderRepository.save(order);
         orderItemService.createOrderItems(saveOrder.getOrderId(), items);
+
+        OrderEvent orderEvent = new OrderEvent(
+                saveOrder.getOrderNumber(),
+                saveOrder.getCustomerEmail());
+
+        try {
+
+            String payload = objectMapper.writeValueAsString(orderEvent);
+            OutboxEvent outboxEvent= OutboxEvent.builder()
+                    .aggregatetype("orders")
+                    .aggregateid(saveOrder.getOrderNumber())
+                    .type("OrderCreated")
+                    .payload(payload)
+                    .build();
+            outboxEventRepository.save(outboxEvent);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(
+                    "could not serialize OrderCreated event", e
+            );
+        }
+
         eventPublisher.publishOrderCreated(order);
         return orderMapper.toOrderResponse(saveOrder);
 
